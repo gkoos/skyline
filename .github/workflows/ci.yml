@@ -42,5 +42,6 @@ jobs:
       with:
         file: coverage.out
         fail_ci_if_error: true
+        slug: gkoos/skyline
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
