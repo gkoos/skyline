@@ -41,6 +41,9 @@ jobs:
     - name: Clean Go build cache
       run: go clean -cache -modcache
 
+    - name: Remove Go build and module cache directories
+      run: rm -rf ~/.cache/go-build ~/go/pkg/mod
+
     - name: Run lint
       run: golangci-lint run ./...
 
