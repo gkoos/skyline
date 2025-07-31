@@ -43,6 +43,9 @@ jobs:
     - name: Remove Go build and module cache directories
       run: rm -rf ~/.cache/go-build ~/go/pkg/mod
 
+    - name: Show golangci-lint config
+      run: cat .golangci.yml
+
     - name: Run lint
       run: golangci-lint run --config=.golangci.yml ./...
 
