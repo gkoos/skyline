@@ -1,0 +1,32 @@
+# Binaries and build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.log
+*.coverprofile
+coverage.out
+
+# Dependency directories (if any)
+vendor/
+bin/
+build/
+dist/
+
+# Go build cache (not needed in repo)
+.cache/
+.cache/go-build/
+go-build/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
