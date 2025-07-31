@@ -38,7 +38,7 @@ jobs:
       run: go test -v -coverprofile=coverage.out ./internal/... ./skyline/...
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4.4.1
       with:
         file: coverage.out
         fail_ci_if_error: true
