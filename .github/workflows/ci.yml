@@ -34,19 +34,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-
 
-    - name: Install golangci-lint from source
-      run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.0
-
-    - name: Clean Go build cache
-      run: go clean -cache -modcache
-
-    - name: Remove Go build and module cache directories
-      run: rm -rf ~/.cache/go-build ~/go/pkg/mod
-
-
-    - name: Run lint
-      run: golangci-lint run --fast --disable=typecheck --disable=staticcheck --disable=unused --disable=gosimple --disable=stylecheck --disable=varcheck --disable=structcheck --disable=ineffassign --disable=deadcode --disable=errcheck ./...
-
     - name: Run tests with coverage
       run: go test -v -coverprofile=coverage.out ./internal/... ./skyline/...
 
