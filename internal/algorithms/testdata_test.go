@@ -1,10 +1,54 @@
 package algorithms
 
-import "github.com/gkoos/skyline/types"
+import (
+	"github.com/gkoos/skyline/types"
+)
 
 // Deterministic datasets for skyline algorithm tests
 
 var (
+	// 6400-point, 4D, 8 clusters, 8 outliers (all Min prefs)
+	Dataset64Clusters4D = func() types.Dataset {
+		data := make(types.Dataset, 6400)
+		// 8 outlier points (skyline)
+		outliers := []types.Point{
+			{0, 10, 20, 30},
+			{10, 20, 30, 0},
+			{20, 30, 0, 10},
+			{30, 0, 10, 20},
+			{0, 20, 30, 10},
+			{10, 30, 0, 20},
+			{20, 0, 10, 30},
+			{30, 10, 20, 0},
+		}
+		for c := 0; c < 8; c++ {
+			// Set the outlier as the first point in each cluster
+			data[c*800+0] = outliers[c]
+			for i := 1; i < 800; i++ {
+				data[c*800+i] = types.Point{
+					outliers[c][0] + float64(i)/10.0,
+					outliers[c][1] + float64(i)/10.0,
+					outliers[c][2] + float64(i)/10.0,
+					outliers[c][3] + float64(i)/10.0,
+				}
+			}
+		}
+		return data
+	}()
+	ExpectedSkyline64Clusters4D = func() types.Dataset {
+		outliers := []types.Point{
+			{0, 10, 20, 30},
+			{10, 20, 30, 0},
+			{20, 30, 0, 10},
+			{30, 0, 10, 20},
+			{0, 20, 30, 10},
+			{10, 30, 0, 20},
+			{20, 0, 10, 30},
+			{30, 10, 20, 0},
+		}
+		return outliers
+	}()
+
 	// 10,000 points, 4D, small skyline
 	Dataset10000SmallSkyline4D = func() types.Dataset {
 		data := make(types.Dataset, 10000)
@@ -19,6 +63,7 @@ var (
 		}
 		return data
 	}()
+
 	ExpectedSkyline10000SmallSkyline4D = func() types.Dataset {
 		data := make(types.Dataset, 10)
 		for i := 0; i < 10; i++ {
@@ -27,33 +72,42 @@ var (
 		return data
 	}()
 	// 1000 points, one dominating (4D)
+
 	Dataset1000OneDominating4D = func() types.Dataset {
 		data := make(types.Dataset, 1000)
-		for i := 0; i < 999; i++ {
-			data[i] = types.Point{float64(100 + i), float64(100 - i), float64(200 + i), float64(200 - i)}
+		// the first point, (0,0,0,0) dominates all others
+		for i := 0; i < 1000; i++ {
+			data[i] = types.Point{float64(i), float64(i), float64(i), float64(i)}
 		}
-		data[999] = types.Point{0.0, 1000.0, 0.0, 2000.0} // dominates all others
+
 		return data
 	}()
+
 	ExpectedSkyline1000OneDominating4D = types.Dataset{
-		{0, 1000, 0, 2000},
+		{0, 0, 0, 0},
 	}
 
 	// 1000 points, a couple dominating (4D)
+
 	Dataset1000CoupleDominating4D = func() types.Dataset {
 		data := make(types.Dataset, 1000)
+		// 998 dominated points
 		for i := 0; i < 998; i++ {
-			data[i] = types.Point{float64(100 + i), float64(100 - i), float64(200 + i), float64(200 - i)}
+			data[i] = types.Point{float64(i + 1), float64(i + 1), float64(i + 1), float64(i + 1)}
 		}
-		data[998] = types.Point{0.0, 1000.0, 0.0, 2000.0}
-		data[999] = types.Point{1.0, 999.0, 1.0, 1999.0}
+		// 2 dominating points
+		data[998] = types.Point{0.5, 0.0, 0.5, 0.0}
+		data[999] = types.Point{0.0, 0.5, 0.0, 0.5}
 		return data
 	}()
+
 	ExpectedSkyline1000CoupleDominating4D = types.Dataset{
-		{0, 1000, 0, 2000},
+		{0.5, 0.0, 0.5, 0.0},
+		{0.0, 0.5, 0.0, 0.5},
 	}
 
 	// 1000 points, all the same (4D)
+
 	Dataset1000AllSame4D = func() types.Dataset {
 		data := make(types.Dataset, 1000)
 		for i := range data {
@@ -61,6 +115,7 @@ var (
 		}
 		return data
 	}()
+
 	ExpectedSkyline1000AllSame4D = func() types.Dataset {
 		data := make(types.Dataset, 1000)
 		for i := range data {
@@ -69,6 +124,7 @@ var (
 		return data
 	}()
 	// 5 elements, 2-3 dominating points
+
 	Dataset5SomeDominating = types.Dataset{
 		{1, 10}, // dominates all others
 		{2, 9},  // dominated by {1,10}
@@ -76,17 +132,21 @@ var (
 		{4, 7},  // dominated by {1,10}
 		{5, 6},  // dominated by {1,10}
 	}
+
 	ExpectedSkyline5SomeDominating = types.Dataset{
 		{1, 10},
 	}
 
 	// Edge cases
-	DatasetEmpty         = types.Dataset{}
+
+	DatasetEmpty = types.Dataset{}
+
 	ExpectedSkylineEmpty = types.Dataset{}
 
 	DatasetSingle = types.Dataset{
 		{42, 42},
 	}
+
 	ExpectedSkylineSingle = types.Dataset{
 		{42, 42},
 	}
@@ -94,6 +154,7 @@ var (
 	DatasetAllSame = types.Dataset{
 		{7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7},
 	}
+
 	ExpectedSkylineAllSame = types.Dataset{
 		{7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7},
 	}
@@ -198,4 +259,49 @@ var (
 		}
 		return data
 	}()
+	// 2000 points, 8D, 2 outliers, rest dominated
+	Dataset2000SmallSkyline8D = func() types.Dataset {
+		data := make(types.Dataset, 2000)
+		// 1998 dominated points
+		for i := 0; i < 1998; i++ {
+			vals := make([]float64, 8)
+			for d := 0; d < 8; d++ {
+				vals[d] = 100 + float64(i%10) + float64(d)
+			}
+			data[i] = types.Point(vals)
+		}
+		// 2 outliers (skyline points)
+		// These do not dominate each other, but both dominate all others
+		data[1998] = types.Point{0, 0, 0, 0, 10, 10, 10, 10}
+		data[1999] = types.Point{10, 10, 10, 10, 0, 0, 0, 0}
+		return data
+	}()
+	ExpectedSkyline2000SmallSkyline8D = types.Dataset{
+		{0, 0, 0, 0, 10, 10, 10, 10},
+		{10, 10, 10, 10, 0, 0, 0, 0},
+	}
+
+	// 8 points, 8D, all points on the skyline and not equal (anti-chain)
+	Dataset2000AllSkyline8D = func() types.Dataset {
+		N := 8
+		data := make(types.Dataset, N)
+		for i := 0; i < N; i++ {
+			data[i] = types.Point{
+				float64(i), float64(i + 1), float64(i + 2), float64(i + 3),
+				float64(N - i), float64(N - i - 1), float64(N - i - 2), float64(N - i - 3),
+			}
+		}
+		return data
+	}()
+	ExpectedSkyline2000AllSkyline8D = Dataset2000AllSkyline8D
+
+	// 2000 points, 8D, all points are equal
+	Dataset2000AllEqual8D = func() types.Dataset {
+		data := make(types.Dataset, 2000)
+		for i := range data {
+			data[i] = types.Point{7, 7, 7, 7, 7, 7, 7, 7}
+		}
+		return data
+	}()
+	ExpectedSkyline2000AllEqual8D = Dataset2000AllEqual8D
 )

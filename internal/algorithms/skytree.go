@@ -12,12 +12,24 @@ import (
 )
 
 // Semaphore for parallelization control
-var maxParallelism int
-var parallelSem chan struct{}
+// Worker pool for parallel recursion
+type workerPool struct {
+	sem chan struct{}
+}
 
-func init() {
-	maxParallelism = runtime.NumCPU()
-	parallelSem = make(chan struct{}, maxParallelism)
+func newWorkerPool(size int) *workerPool {
+	if size <= 0 {
+		size = runtime.NumCPU()
+	}
+	return &workerPool{sem: make(chan struct{}, size)}
+}
+
+func (wp *workerPool) acquire() {
+	wp.sem <- struct{}{}
+}
+
+func (wp *workerPool) release() {
+	<-wp.sem
 }
 
 // dominanceKeyString creates a unique string key for a, b, and prefs
@@ -61,8 +73,11 @@ func (dc *dominanceCache) store(a, b types.Point, prefs types.Preference, result
 }
 
 var defaultSkyTreeConfig = types.SkyTreeConfig{
-	PivotSelector:     SelectMedianPivot,
-	ParallelThreshold: 8,
+	PivotSelector:      SelectMedianPivot,
+	MaxRecursionDepth:  500,
+	ParallelThreshold:  4,
+	BNLSwitchThreshold: 1024, // Default: switch to BNL if <= 1024 points
+	WorkerPoolSize:     0,    // Default: use all available CPU cores
 }
 
 // SkyTree computes the skyline using the SkyTree algorithm.
@@ -70,12 +85,13 @@ func SkyTree(data types.Dataset, prefs types.Preference, cfg *types.SkyTreeConfi
 	if cfg == nil {
 		cfg = &defaultSkyTreeConfig
 	}
-	skyline := skytreeRecWithDepth(data, prefs, cfg.PivotSelector, 0, cfg.MaxRecursionDepth)
+	pool := newWorkerPool(cfg.WorkerPoolSize)
+	skyline := skytreeRecWithDepthPool(data, prefs, cfg.PivotSelector, 0, cfg.MaxRecursionDepth, pool, cfg.BNLSwitchThreshold)
 	return skyline
 }
 
-// Recursive with depth limit and fallback
-func skytreeRecWithDepth(data types.Dataset, prefs types.Preference, pivotSelector func(data types.Dataset, prefs types.Preference) types.Point, depth, maxDepth int) types.Dataset {
+// Recursive with worker pool and deeper parallel recursion
+func skytreeRecWithDepthPool(data types.Dataset, prefs types.Preference, pivotSelector func(data types.Dataset, prefs types.Preference) types.Point, depth, maxDepth int, pool *workerPool, bnlSwitchThreshold int) types.Dataset {
 	n := len(data)
 	if n == 0 {
 		return nil
@@ -83,35 +99,54 @@ func skytreeRecWithDepth(data types.Dataset, prefs types.Preference, pivotSelect
 	if n == 1 {
 		return data
 	}
+	if n <= bnlSwitchThreshold {
+		return BlockNestedLoop(data, prefs)
+	}
+	// Check for anti-chain: all points are mutually non-dominating
+	antiChain := true
+	for i := 0; i < n && antiChain; i++ {
+		for j := i + 1; j < n; j++ {
+			if utilities.Dominates(data[i], data[j], prefs) || utilities.Dominates(data[j], data[i], prefs) {
+				antiChain = false
+				break
+			}
+		}
+	}
+	if antiChain {
+		return data
+	}
 	if depth >= maxDepth {
 		// Fallback to BlockNestedLoop
 		return BlockNestedLoop(data, prefs)
 	}
 	pivot := pivotSelector(data, prefs)
-	// Reuse buffer for remaining points
-	var buf types.Dataset
-	if cap(buf) < n {
-		buf = make(types.Dataset, 0, n)
-	} else {
-		buf = buf[:0]
-	}
+	// Partition points and collect those equal to the pivot
+	equalToPivot := make(types.Dataset, 0, n)
+	remaining := make(types.Dataset, 0, n)
 	for _, pt := range data {
-		if utilities.Dominates(pivot, pt, prefs) {
-			continue
+		equal := true
+		if len(pt) == len(pivot) {
+			for i := range pt {
+				if pt[i] != pivot[i] {
+					equal = false
+					break
+				}
+			}
+		} else {
+			equal = false
 		}
-		if utilities.Dominates(pt, pivot, prefs) {
-			pivot = pt
-			continue
+		if equal {
+			equalToPivot = append(equalToPivot, pt)
+		} else {
+			remaining = append(remaining, pt)
 		}
-		buf = append(buf, pt)
 	}
-	remaining := buf
 	partitions := make(map[int]types.Dataset)
 	for _, pt := range remaining {
 		mask := regionMaskBit(pt, pivot, prefs)
 		partitions[mask] = append(partitions[mask], pt)
 	}
-	skyline := types.Dataset{pivot}
+
 	partitionCount := len(partitions)
 	var threshold int = 8
 	parallel := partitionCount >= threshold
@@ -124,46 +159,89 @@ func skytreeRecWithDepth(data types.Dataset, prefs types.Preference, pivotSelect
 		dc.store(a, b, prefs, res)
 		return res
 	}
+	// Gather all child skylines
+	childSkylines := make([]types.Dataset, partitionCount)
+	keys := make([]int, 0, partitionCount)
+	for k := range partitions {
+		keys = append(keys, k)
+	}
+	var wg sync.WaitGroup
 	if parallel {
-		var wg sync.WaitGroup
-		var mu sync.Mutex
-		results := make([]types.Dataset, 0, partitionCount)
-		for _, subset := range partitions {
-			if len(subset) == 0 || canPruneRegionCached(subset, skyline, prefs, dominates) {
-				continue
-			}
-			parallelSem <- struct{}{} // Acquire slot
-			wg.Add(1)
-			go func(subset types.Dataset) {
-				defer func() {
-					<-parallelSem // Release slot
-					wg.Done()
-				}()
-				pruned := pruneWithPivotCached(subset, pivot, prefs, dominates)
-				childSky := skytreeRecWithDepth(pruned, prefs, pivotSelector, depth+1, maxDepth)
-				mu.Lock()
-				results = append(results, childSky)
-				mu.Unlock()
-			}(subset)
-		}
-		wg.Wait()
-		for _, childSky := range results {
-			skyline = mergeSkylineCached(skyline, childSky, prefs, dominates)
-		}
-	} else {
-		for _, subset := range partitions {
+		for idx, k := range keys {
+			subset := partitions[k]
 			if len(subset) == 0 {
 				continue
 			}
-			if canPruneRegionCached(subset, skyline, prefs, dominates) {
+			pruned := pruneWithPivotCached(subset, pivot, prefs, dominates)
+			wg.Add(1)
+			pool.acquire()
+			go func(i int, prunedSubset types.Dataset) {
+				defer func() {
+					pool.release()
+					wg.Done()
+				}()
+				childSky := skytreeRecWithDepthPool(prunedSubset, prefs, pivotSelector, depth+1, maxDepth, pool, bnlSwitchThreshold)
+				childSkylines[i] = childSky
+			}(idx, pruned)
+		}
+		wg.Wait()
+	} else {
+		for idx, k := range keys {
+			subset := partitions[k]
+			if len(subset) == 0 {
 				continue
 			}
 			pruned := pruneWithPivotCached(subset, pivot, prefs, dominates)
-			childSky := skytreeRecWithDepth(pruned, prefs, pivotSelector, depth+1, maxDepth)
-			skyline = mergeSkylineCached(skyline, childSky, prefs, dominates)
+			childSky := skytreeRecWithDepthPool(pruned, prefs, pivotSelector, depth+1, maxDepth, pool, bnlSwitchThreshold)
+			childSkylines[idx] = childSky
 		}
 	}
-	return skyline
+	// Parallel merge of child skylines using the worker pool
+	merged := parallelMergeSkylines(childSkylines, prefs, pool)
+	// Add points equal to the pivot
+	merged = append(merged, equalToPivot...)
+	// Compute the local skyline of the union
+	localSkyline := BlockNestedLoop(merged, prefs)
+	return localSkyline
+}
+
+// parallelMergeSkylines merges a slice of skylines in parallel using the worker pool
+func parallelMergeSkylines(skylines []types.Dataset, prefs types.Preference, pool *workerPool) types.Dataset {
+	if len(skylines) == 0 {
+		return nil
+	}
+	if len(skylines) == 1 {
+		return skylines[0]
+	}
+	// Iteratively merge in log2(N) stages
+	curr := skylines
+	for len(curr) > 1 {
+		var wg sync.WaitGroup
+		next := make([]types.Dataset, (len(curr)+1)/2)
+		for i := 0; i < len(curr)/2; i++ {
+			a, b := curr[2*i], curr[2*i+1]
+			wg.Add(1)
+			pool.acquire()
+			go func(idx int, left, right types.Dataset) {
+				defer func() {
+					pool.release()
+					wg.Done()
+				}()
+				// Merge two skylines and compute their local skyline
+				merged := make(types.Dataset, 0, len(left)+len(right))
+				merged = append(merged, left...)
+				merged = append(merged, right...)
+				next[idx] = BlockNestedLoop(merged, prefs)
+			}(i, a, b)
+		}
+		// If odd, carry the last one
+		if len(curr)%2 == 1 {
+			next[len(next)-1] = curr[len(curr)-1]
+		}
+		wg.Wait()
+		curr = next
+	}
+	return curr[0]
 }
 
 // selectMedianPivot chooses the point closest to the median in all dimensions
@@ -236,32 +314,6 @@ func pruneWithPivotCached(data types.Dataset, pivot types.Point, prefs types.Pre
 		}
 	}
 	return buf
-}
-
-func mergeSkylineCached(a, b types.Dataset, prefs types.Preference, dominates func(a, b types.Point, prefs types.Preference) bool) types.Dataset {
-	// Reuse buffer for result
-	result := append(a[:0:0], a...)
-	for _, pt := range b {
-		dominated := false
-		for _, s := range result {
-			if dominates(s, pt, prefs) {
-				dominated = true
-				break
-			}
-		}
-		if !dominated {
-			// Remove any points in result dominated by pt
-			buf := result[:0]
-			for _, s := range result {
-				if !dominates(pt, s, prefs) {
-					buf = append(buf, s)
-				}
-			}
-			buf = append(buf, pt)
-			result = buf
-		}
-	}
-	return result
 }
 
 // regionMaskBit encodes the region of pt relative to pivot as an integer bitmask

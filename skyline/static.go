@@ -19,6 +19,9 @@ var DNCConfig = types.DNCConfig{
 var SkyTreeConfig = types.SkyTreeConfig{
 	PivotSelector:     algorithms.SelectMedianPivot,
 	MaxRecursionDepth: 500,
+	ParallelThreshold: 4,
+	BNLSwitchThreshold: 1024,
+	WorkerPoolSize: 0,
 }
 
 // Skyline computes the skyline from a static dataset using the specified algorithm.

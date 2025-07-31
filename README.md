@@ -138,11 +138,15 @@ func main() {
 #### Optimization Steps
 The SkyTree implementation in this library includes several advanced optimizations for performance and scalability:
 - **Advanced Pivot Selection:** Uses median or custom pivot selection to improve partitioning and pruning efficiency
-- **Parallelization:** Processes partitions in parallel when the number of regions exceeds a threshold, leveraging goroutines for speed on multicore systems
+- **Parallelization:** SkyTree uses parallelism in two main phases:
+    - **Parallel Recursion:** When the number of partitions (regions) exceeds a threshold, recursive calls for each partition are executed in parallel using goroutines. This allows the algorithm to process different branches of the tree concurrently, greatly speeding up computation on multicore systems.
+    - **Parallel Merge:** After recursion, the partial skylines from each partition are merged in parallel using a pairwise, multi-stage approach. At each stage, pairs of skylines are merged concurrently, reducing the total merge time to log₂(N) stages for N partitions.
+    - **Worker Pool:** Both recursion and merge parallelism are managed by a configurable worker pool, which limits the number of concurrent goroutines to avoid oversubscription and maximize CPU efficiency. The pool size defaults to the number of available CPU cores, but can be tuned for your workload.
 - **Dominance Caching:** Caches dominance checks between points to avoid redundant computations, reducing overall work
 - **Slice Reuse:** Minimizes memory allocations by reusing slices in recursive calls and helpers
 - **Custom Deduplication:** Uses a fast custom join for point keys, improving deduplication speed for large datasets
 - **Configurable Recursion Depth:** Allows limiting recursion depth to prevent stack overflow and excessive computation; falls back to BNL if the limit is reached
+- **Small Partition BNL Switch:** If the number of points in a partition is lsmall, SkyTree will use the Block Nested Loop (BNL) algorithm for that partition instead of recursing further. This optimization avoids SkyTree's overhead on small datasets, where BNL is typically faster, and can significantly improve performance for workloads with many small partitions. The threshold is tunable; see the configuration section for details.
 
 These optimizations make SkyTree suitable for very large and high-dimensional datasets, balancing speed, memory usage, and accuracy.
 
@@ -163,6 +167,8 @@ Skyline algorithms can be fine-tuned using configuration options to optimize per
 - `PivotSelector`: Function to choose the pivot point for partitioning. The default is median selection, but you can provide a custom function for domain-specific optimization.
 - `ParallelThreshold`: Minimum number of partitions before enabling parallel processing. Lower values increase parallelism, higher values reduce goroutine overhead.
 - `MaxRecursionDepth`: Maximum allowed recursion depth. If exceeded, SkyTree falls back to BNL for the remaining data. Prevents stack overflow and excessive computation for very large or complex datasets.
+- `BNLSwitchThreshold`: If the number of points in a partition is less than or equal to this threshold, SkyTree will use the Block Nested Loop (BNL) algorithm for that partition instead of recursing further. This improves performance by avoiding SkyTree's overhead on small datasets, where BNL is typically faster. The default is 32, but you can tune this value for your workload and hardware. Lower values reduce BNL usage; higher values make SkyTree switch to BNL more often for small partitions.
+- `WorkerPoolSize`: Controls the maximum number of goroutines (workers) used for parallel recursion and merging in SkyTree. Setting this to `0` (the default) will use the number of available CPU cores on your system, which is usually optimal for most workloads. You can set a specific positive value to limit CPU usage or experiment with different levels of parallelism. Increasing this value may improve performance on large, partitionable datasets, but setting it too high can cause oversubscription and reduce efficiency. For most users, leaving it at `0` is recommended.
 
 Refer to the code and examples for how to set these options in your application.
 
