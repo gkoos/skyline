@@ -8,11 +8,10 @@ Supports both **static** and **dynamic** skyline computation with multiple algor
 ## What is a Skyline Query?
 
 Skyline queries identify the subset of points in a multi-dimensional dataset that are **not dominated** by any other point.  
-A point *A* dominates *B* if *A* is as good or better than *B* in all dimensions and strictly better in at least one dimension.  
+A point *A* dominates *B* if *A* is as good or better than *B* in all dimensions and strictly better in at least one dimension.
 
 This is useful in scenarios like:
-
-- Finding products that are best across multiple criteria (price, performance, battery life).  
+- Finding products that are best across multiple criteria (price, performance, battery life)
 - Multi-criteria decision making in finance, logistics, recommendation systems, etc.
 
 The result, called the **skyline set**, represents the **Pareto-optimal front** of your data.
@@ -21,10 +20,10 @@ The result, called the **skyline set**, represents the **Pareto-optimal front** 
 
 ## What does this library do?
 
-- Compute skyline points from static datasets using multiple algorithms (Block Nested Loop, Divide & Conquer, SkyTree).  
-- Support dynamic updates: insert, delete, and update points incrementally without recomputing from scratch.  
-- Allow flexible dimension selection and preference (minimize/maximize per dimension).  
-- Provide a simple, idiomatic Go API for both static and dynamic skyline queries.
+- Compute skyline points from static datasets using multiple algorithms (Block Nested Loop, Divide & Conquer, SkyTree)
+- Support dynamic updates: insert, delete, and update points incrementally without recomputing from scratch
+- Allow flexible dimension selection and preference (minimize/maximize per dimension)
+- Provide a simple, idiomatic Go API for both static and dynamic skyline queries
 
 ---
 
@@ -33,6 +32,8 @@ The result, called the **skyline set**, represents the **Pareto-optimal front** 
 ```bash
 go get github.com/gkoos/skyline
 ```
+
+---
 
 ## API Overview
 
@@ -109,26 +110,56 @@ func main() {
 }
 ```
 
+---
+
 ## Algorithms
 
 ### Block Nested Loop (BNL)
-
-- Simple, intuitive algorithm.
-- Compares each point with all others to find dominating points.
-- Works well for small datasets and supports incremental updates easily.
-- *In dynamic mode, we always use this algorithm.*
+- Simple, intuitive algorithm
+- Compares each point with all others to find dominating points
+- Works well for small datasets and supports incremental updates easily
+- *In dynamic mode, we always use this algorithm*
 
 ### Divide & Conquer (D&C)
-
-- Recursively divides data into smaller subsets, computes skylines, and merges results.
-- More efficient than BNL for larger datasets.
-- Static algorithm, dynamic extension is complex.
+- Recursively divides data into smaller subsets, computes skylines, and merges results
+- More efficient than BNL for larger datasets
+- Static algorithm, dynamic extension is complex
 
 ### SkyTree
+- Advanced algorithm using tree structures to prune comparisons
+- Scales well with high-dimensional and large datasets
+- Designed primarily for static datasets
 
-- Advanced algorithm using tree structures to prune comparisons.
-- Scales well with high-dimensional and large datasets.
-- Designed primarily for static datasets.
+#### Optimization Steps
+The SkyTree implementation in this library includes several advanced optimizations for performance and scalability:
+- **Advanced Pivot Selection:** Uses median or custom pivot selection to improve partitioning and pruning efficiency
+- **Parallelization:** Processes partitions in parallel when the number of regions exceeds a threshold, leveraging goroutines for speed on multicore systems
+- **Dominance Caching:** Caches dominance checks between points to avoid redundant computations, reducing overall work
+- **Slice Reuse:** Minimizes memory allocations by reusing slices in recursive calls and helpers
+- **Custom Deduplication:** Uses a fast custom join for point keys, improving deduplication speed for large datasets
+- **Configurable Recursion Depth:** Allows limiting recursion depth to prevent stack overflow and excessive computation; falls back to BNL if the limit is reached
+
+These optimizations make SkyTree suitable for very large and high-dimensional datasets, balancing speed, memory usage, and accuracy.
+
+---
+
+## Configuration
+
+Skyline algorithms can be fine-tuned using configuration options to optimize performance and scalability for different dataset sizes and characteristics. Tuning these options allows you to balance speed, memory usage, and accuracy, especially for large or high-dimensional data. Proper configuration is essential to avoid bottlenecks, excessive memory consumption, or incomplete results, and lets you adapt the algorithms to your specific workload and hardware.
+
+### Block Nested Loop (BNL)
+- No configuration options. BNL is simple and always compares all points; best for small datasets or incremental updates.
+
+### Divide & Conquer (DNC)
+- `Threshold`: Minimum number of points in a partition before switching to BNL. Lower values increase recursion, higher values use BNL more often. Tune for your dataset size.
+- `BatchSize`: Number of points processed together in each batch. Larger batches can improve cache locality and throughput, but may use more memory.
+
+### SkyTree
+- `PivotSelector`: Function to choose the pivot point for partitioning. The default is median selection, but you can provide a custom function for domain-specific optimization.
+- `ParallelThreshold`: Minimum number of partitions before enabling parallel processing. Lower values increase parallelism, higher values reduce goroutine overhead.
+- `MaxRecursionDepth`: Maximum allowed recursion depth. If exceeded, SkyTree falls back to BNL for the remaining data. Prevents stack overflow and excessive computation for very large or complex datasets.
+
+Refer to the code and examples for how to set these options in your application.
 
 ---
 
@@ -152,14 +183,33 @@ To run performance benchmarks and compare algorithms:
 go test -bench . ./internal/algorithms
 ```
 
-This runs repeatable benchmarks for BNL and D&C on various datasets (small, large, high-dimensional, and pathological).
-D&C is generally faster for large, diverse datasets; BNL may be faster for small or highly uniform data.
+This command runs repeatable benchmarks for all implemented skyline algorithms (BNL, D&C, SkyTree) on a variety of datasets, including small, large, high-dimensional, clustered, and pathological cases.
 
-Use these results to select the best algorithm for your use case and to validate performance improvements.
+**Algorithm selection guidance:**
+- **Block Nested Loop (BNL):** Best for small datasets or when incremental updates are needed. Simple, but slow for large or high-dimensional data.
+- **Divide & Conquer (DNC):** Generally fastest for large, diverse datasets with a moderate skyline size. Uses more memory, but scales well unless most points are dominated.
+- **SkyTree:** Optimized for very large, high-dimensional datasets with many dominated (clustered) points and a small skyline. SkyTree is much faster and more memory-efficient than DNC when the dataset is highly clustered and the skyline is small. For datasets where most points are Pareto-optimal (large skyline), DNC may be faster.
+
+**Summary:**
+- Use BNL for small or dynamic datasets.
+- Use DNC for large, diverse datasets with a moderate skyline.
+- Use SkyTree for large, high-dimensional, clustered datasets with a small skyline.
+- Benchmark your own data to select the best algorithm for your use case.
+
+---
+
+## Future Improvements
+
+- Add debug visualizer (especially for the SkyTree algorithm) (optional CLI)
+- Add batch processing support to the SkyTree implementation
+
+---
 
 ## License
 
 MIT License
+
+---
 
 ## Contact
 

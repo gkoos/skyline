@@ -20,5 +20,7 @@ type DNCConfig struct {
 }
 
 type SkyTreeConfig struct {
-	// Add fields as needed for SkyTree configuration
+	PivotSelector     func(data Dataset, prefs Preference) Point
+	ParallelThreshold int // Minimum number of partitions to parallelize
+	MaxRecursionDepth int // Maximum allowed recursion depth for SkyTree
 }

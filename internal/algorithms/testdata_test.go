@@ -2,7 +2,7 @@ package algorithms
 
 import "github.com/gkoos/skyline/types"
 
-// Small deterministic datasets for skyline algorithm tests
+// Deterministic datasets for skyline algorithm tests
 
 var (
 	// 10,000 points, 4D, small skyline
@@ -144,6 +144,57 @@ var (
 		data := make(types.Dataset, 5000)
 		for i := range data {
 			data[i] = types.Point{7, 7}
+		}
+		return data
+	}()
+
+	// 100,000 points, 4D, small skyline
+	Dataset100000SmallSkyline4D = func() types.Dataset {
+		data := make(types.Dataset, 100000)
+		// Most points are dominated, only a few are on the skyline
+		for i := 0; i < 99990; i++ {
+			// Clustered points, dominated by outliers
+			data[i] = types.Point{float64(100 + i%10), float64(100 - i%10), float64(200 + i%10), float64(200 - i%10)}
+		}
+		// Add 10 outliers that will be the skyline
+		for i := 0; i < 10; i++ {
+			data[99990+i] = types.Point{float64(i), float64(1000 - i), float64(i), float64(2000 - i)}
+		}
+		return data
+	}()
+	ExpectedSkyline100000SmallSkyline4D = func() types.Dataset {
+		data := make(types.Dataset, 10)
+		for i := 0; i < 10; i++ {
+			data[i] = types.Point{float64(i), float64(1000 - i), float64(i), float64(2000 - i)}
+		}
+		return data
+	}()
+
+	// 200,000 points, 8D, clustered, small skyline
+	Dataset200000ClusteredSmallSkyline8D = func() types.Dataset {
+		data := make(types.Dataset, 200000)
+		// 199,990 clustered points
+		for i := 0; i < 199990; i++ {
+			// Clustered around (100, 100, ..., 100) with small noise
+			data[i] = types.Point{
+				100 + float64(i%10), 100 + float64((i/10)%10), 100 + float64((i/100)%10), 100 + float64((i/1000)%10),
+				100 + float64((i/10000)%10), 100 + float64((i/100000)%10), 100 + float64((i/1000000)%10), 100 + float64((i/10000000)%10),
+			}
+		}
+		// 10 outliers that dominate all clustered points
+		for i := 0; i < 10; i++ {
+			data[199990+i] = types.Point{
+				float64(i), float64(i), float64(i), float64(i), float64(i), float64(i), float64(i), float64(i),
+			}
+		}
+		return data
+	}()
+	ExpectedSkyline200000ClusteredSmallSkyline8D = func() types.Dataset {
+		data := make(types.Dataset, 10)
+		for i := 0; i < 10; i++ {
+			data[i] = types.Point{
+				float64(i), float64(i), float64(i), float64(i), float64(i), float64(i), float64(i), float64(i),
+			}
 		}
 		return data
 	}()

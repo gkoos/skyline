@@ -5,6 +5,7 @@ import (
 )
 
 // Engine is the interface for dynamic skyline operations.
+// Engine supports insert, update, delete, and retrieval of the current skyline set.
 type Engine interface {
 	Insert(Point)
 	Update(Point, Point)
@@ -21,7 +22,8 @@ type engine struct {
 	skyline []Point // always up-to-date skyline set
 }
 
-// DynamicSkyline creates a new dynamic skyline engine and calculates the initial skyline.
+// DynamicSkyline creates a new dynamic skyline Engine and calculates the initial skyline.
+// DynamicSkyline returns an Engine that supports incremental skyline updates.
 func DynamicSkyline(points []Point, dims []string, prefs Preference, algo string) (Engine, error) {
 	e := &engine{
 		points: points,
@@ -38,7 +40,7 @@ func DynamicSkyline(points []Point, dims []string, prefs Preference, algo string
 	return e, nil
 }
 
-// Adds a new point and updates the skyline.
+// Insert adds a new point and updates the skyline incrementally.
 func (e *engine) Insert(p Point) {
 	e.points = append(e.points, p)
 
@@ -71,7 +73,7 @@ func (e *engine) Insert(p Point) {
 	e.skyline = newSkyline
 }
 
-// Replaces an old point with a new one and updates the skyline.
+// Update replaces an old point with a new one and updates the skyline.
 func (e *engine) Update(old, new Point) {
 	// Remove the old point from the dataset
 	var updatedPoints []Point
@@ -95,7 +97,7 @@ func (e *engine) Update(old, new Point) {
 	e.Insert(new)
 }
 
-// Removes a point and updates the skyline.
+// Delete removes a point and updates the skyline.
 func (e *engine) Delete(p Point) {
 	// Remove the point from the dataset
 	var updatedPoints []Point
@@ -152,12 +154,12 @@ func (e *engine) Delete(p Point) {
 	e.skyline = updatedSkyline
 }
 
-// Returns the current skyline set.
+// Skyline returns the current skyline set.
 func (e *engine) Skyline() []Point {
 	return e.skyline
 }
 
-// Helper function to compare two points for equality
+// equalPoint compares two points for equality.
 func equalPoint(a, b Point) bool {
 	if len(a) != len(b) {
 		return false

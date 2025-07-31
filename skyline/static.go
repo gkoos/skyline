@@ -7,13 +7,18 @@ import (
 	"github.com/gkoos/skyline/types"
 )
 
+// DNCConfig controls the configuration for the Divide & Conquer skyline algorithm.
+// Modifying this variable changes the behavior of the D&C algorithm globally.
 var DNCConfig = types.DNCConfig{
 	Threshold: 100,
 	BatchSize: 100,
 }
 
+// SkyTreeConfig controls the configuration for the SkyTree skyline algorithm.
+// Modifying this variable changes the behavior of the SkyTree algorithm globally.
 var SkyTreeConfig = types.SkyTreeConfig{
-	// Add any SkyTree specific configuration here if needed
+	PivotSelector:     algorithms.SelectMedianPivot,
+	MaxRecursionDepth: 500,
 }
 
 // Skyline computes the skyline from a static dataset using the specified algorithm.
