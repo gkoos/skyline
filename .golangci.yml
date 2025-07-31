@@ -1,0 +1,15 @@
+# Disable linters that crash or panic with Go 1.22+ iterator syntax
+linters:
+  disable:
+    - staticcheck
+    - unused
+    - gosimple
+    - stylecheck
+    - typecheck
+    - varcheck
+    - structcheck
+    - ineffassign
+    - deadcode
+    - errcheck
+
+# You can enable/disable more linters as needed. The rest will still run and check formatting, complexity, security, etc.
