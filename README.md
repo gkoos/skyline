@@ -1,6 +1,9 @@
 # Skyline
 
 A Go library for **skyline queries** — multi-dimensional optimization to find the set of Pareto-optimal points from a dataset.  
+
+[API Documentation on pkg.go.dev](https://pkg.go.dev/github.com/gkoos/skyline)
+
 Supports both **static** and **dynamic** skyline computation with multiple algorithms.
 
 ---
