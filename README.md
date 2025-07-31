@@ -1,5 +1,7 @@
 # Skyline
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/gkoos/skyline)](https://goreportcard.com/report/github.com/gkoos/skyline)
+
 A Go library for **skyline queries** — multi-dimensional optimization to find the set of Pareto-optimal points from a dataset.  
 
 [API Documentation on pkg.go.dev](https://pkg.go.dev/github.com/gkoos/skyline)
