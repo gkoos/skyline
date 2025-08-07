@@ -17,16 +17,16 @@ var DNCConfig = types.DNCConfig{
 // SkyTreeConfig controls the configuration for the SkyTree skyline algorithm.
 // Modifying this variable changes the behavior of the SkyTree algorithm globally.
 var SkyTreeConfig = types.SkyTreeConfig{
-	PivotSelector:     algorithms.SelectMedianPivot,
-	MaxRecursionDepth: 500,
-	ParallelThreshold: 4,
+	PivotSelector:      algorithms.SelectMedianPivot,
+	MaxRecursionDepth:  500,
+	ParallelThreshold:  4,
 	BNLSwitchThreshold: 1024,
-	WorkerPoolSize: 0,
+	WorkerPoolSize:     0,
 }
 
 // Skyline computes the skyline from a static dataset using the specified algorithm.
 // If algo is empty, defaults to "bnl".
-func Skyline(points []types.Point, dims []string, prefs types.Preference, algo string) ([]types.Point, error) {
+func Skyline(points []types.Point, _ []string, prefs types.Preference, algo string) ([]types.Point, error) {
 	if algo == "" {
 		algo = "bnl"
 	}

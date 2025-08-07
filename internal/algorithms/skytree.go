@@ -92,6 +92,40 @@ func SkyTree(data types.Dataset, prefs types.Preference, cfg *types.SkyTreeConfi
 
 // Recursive with worker pool and deeper parallel recursion
 func skytreeRecWithDepthPool(data types.Dataset, prefs types.Preference, pivotSelector func(data types.Dataset, prefs types.Preference) types.Point, depth, maxDepth int, pool *workerPool, bnlSwitchThreshold int) types.Dataset {
+	// Handle base cases
+	if result := handleBaseCases(data, bnlSwitchThreshold); result != nil {
+		return result
+	}
+
+	// Check if we should use BNL for small datasets
+	if len(data) <= bnlSwitchThreshold {
+		return BlockNestedLoop(data, prefs)
+	}
+
+	// Check for anti-chain and depth limit
+	if isAntiChain(data, prefs) {
+		return data
+	}
+	if depth >= maxDepth {
+		return BlockNestedLoop(data, prefs)
+	}
+
+	// Partition data around pivot
+	pivot := pivotSelector(data, prefs)
+	equalToPivot, partitions := partitionDataAroundPivot(data, pivot, prefs)
+
+	// Process partitions (parallel or sequential)
+	childSkylines := processPartitions(partitions, pivot, prefs, pivotSelector, depth, maxDepth, pool, bnlSwitchThreshold)
+
+	// Merge results
+	merged := parallelMergeSkylines(childSkylines, prefs, pool)
+	merged = append(merged, equalToPivot...)
+
+	return BlockNestedLoop(merged, prefs)
+}
+
+// handleBaseCases returns a result for base cases, or nil if no base case applies
+func handleBaseCases(data types.Dataset, bnlSwitchThreshold int) types.Dataset {
 	n := len(data)
 	if n == 0 {
 		return nil
@@ -100,56 +134,66 @@ func skytreeRecWithDepthPool(data types.Dataset, prefs types.Preference, pivotSe
 		return data
 	}
 	if n <= bnlSwitchThreshold {
-		return BlockNestedLoop(data, prefs)
+		return nil // Indicate that BNL should be used, but caller will handle it
 	}
-	// Check for anti-chain: all points are mutually non-dominating
-	antiChain := true
-	for i := 0; i < n && antiChain; i++ {
+	return nil
+}
+
+// isAntiChain checks if all points are mutually non-dominating
+func isAntiChain(data types.Dataset, prefs types.Preference) bool {
+	n := len(data)
+	for i := 0; i < n; i++ {
 		for j := i + 1; j < n; j++ {
 			if utilities.Dominates(data[i], data[j], prefs) || utilities.Dominates(data[j], data[i], prefs) {
-				antiChain = false
-				break
+				return false
 			}
 		}
 	}
-	if antiChain {
-		return data
-	}
-	if depth >= maxDepth {
-		// Fallback to BlockNestedLoop
-		return BlockNestedLoop(data, prefs)
-	}
-	pivot := pivotSelector(data, prefs)
-	// Partition points and collect those equal to the pivot
+	return true
+}
+
+// partitionDataAroundPivot separates data into points equal to pivot and remaining partitions
+func partitionDataAroundPivot(data types.Dataset, pivot types.Point, prefs types.Preference) (types.Dataset, map[int]types.Dataset) {
+	n := len(data)
 	equalToPivot := make(types.Dataset, 0, n)
 	remaining := make(types.Dataset, 0, n)
+
 	for _, pt := range data {
-		equal := true
-		if len(pt) == len(pivot) {
-			for i := range pt {
-				if pt[i] != pivot[i] {
-					equal = false
-					break
-				}
-			}
-		} else {
-			equal = false
-		}
-		if equal {
+		if isPointEqual(pt, pivot) {
 			equalToPivot = append(equalToPivot, pt)
 		} else {
 			remaining = append(remaining, pt)
 		}
 	}
+
 	partitions := make(map[int]types.Dataset)
 	for _, pt := range remaining {
 		mask := regionMaskBit(pt, pivot, prefs)
 		partitions[mask] = append(partitions[mask], pt)
 	}
 
+	return equalToPivot, partitions
+}
+
+// isPointEqual checks if two points are exactly equal
+func isPointEqual(a, b types.Point) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// processPartitions handles the recursive processing of partitions
+func processPartitions(partitions map[int]types.Dataset, pivot types.Point, prefs types.Preference, pivotSelector func(types.Dataset, types.Preference) types.Point, depth, maxDepth int, pool *workerPool, bnlSwitchThreshold int) []types.Dataset {
 	partitionCount := len(partitions)
-	var threshold int = 8
+	const threshold = 8
 	parallel := partitionCount >= threshold
+
 	dc := newDominanceCache()
 	dominates := func(a, b types.Point, prefs types.Preference) bool {
 		if val, ok := dc.check(a, b, prefs); ok {
@@ -159,50 +203,55 @@ func skytreeRecWithDepthPool(data types.Dataset, prefs types.Preference, pivotSe
 		dc.store(a, b, prefs, res)
 		return res
 	}
-	// Gather all child skylines
+
 	childSkylines := make([]types.Dataset, partitionCount)
 	keys := make([]int, 0, partitionCount)
 	for k := range partitions {
 		keys = append(keys, k)
 	}
-	var wg sync.WaitGroup
+
 	if parallel {
-		for idx, k := range keys {
-			subset := partitions[k]
-			if len(subset) == 0 {
-				continue
-			}
-			pruned := pruneWithPivotCached(subset, pivot, prefs, dominates)
-			wg.Add(1)
-			pool.acquire()
-			go func(i int, prunedSubset types.Dataset) {
-				defer func() {
-					pool.release()
-					wg.Done()
-				}()
-				childSky := skytreeRecWithDepthPool(prunedSubset, prefs, pivotSelector, depth+1, maxDepth, pool, bnlSwitchThreshold)
-				childSkylines[i] = childSky
-			}(idx, pruned)
-		}
-		wg.Wait()
-	} else {
-		for idx, k := range keys {
-			subset := partitions[k]
-			if len(subset) == 0 {
-				continue
-			}
-			pruned := pruneWithPivotCached(subset, pivot, prefs, dominates)
-			childSky := skytreeRecWithDepthPool(pruned, prefs, pivotSelector, depth+1, maxDepth, pool, bnlSwitchThreshold)
-			childSkylines[idx] = childSky
-		}
+		return processPartitionsParallel(partitions, keys, childSkylines, pivot, prefs, pivotSelector, depth, maxDepth, pool, bnlSwitchThreshold, dominates)
 	}
-	// Parallel merge of child skylines using the worker pool
-	merged := parallelMergeSkylines(childSkylines, prefs, pool)
-	// Add points equal to the pivot
-	merged = append(merged, equalToPivot...)
-	// Compute the local skyline of the union
-	localSkyline := BlockNestedLoop(merged, prefs)
-	return localSkyline
+	return processPartitionsSequential(partitions, keys, childSkylines, pivot, prefs, pivotSelector, depth, maxDepth, pool, bnlSwitchThreshold, dominates)
+}
+
+// processPartitionsParallel handles parallel processing of partitions
+func processPartitionsParallel(partitions map[int]types.Dataset, keys []int, childSkylines []types.Dataset, pivot types.Point, prefs types.Preference, pivotSelector func(types.Dataset, types.Preference) types.Point, depth, maxDepth int, pool *workerPool, bnlSwitchThreshold int, dominates func(types.Point, types.Point, types.Preference) bool) []types.Dataset {
+	var wg sync.WaitGroup
+	for idx, k := range keys {
+		subset := partitions[k]
+		if len(subset) == 0 {
+			continue
+		}
+		pruned := pruneWithPivotCached(subset, pivot, prefs, dominates)
+		wg.Add(1)
+		pool.acquire()
+		go func(i int, prunedSubset types.Dataset) {
+			defer func() {
+				pool.release()
+				wg.Done()
+			}()
+			childSky := skytreeRecWithDepthPool(prunedSubset, prefs, pivotSelector, depth+1, maxDepth, pool, bnlSwitchThreshold)
+			childSkylines[i] = childSky
+		}(idx, pruned)
+	}
+	wg.Wait()
+	return childSkylines
+}
+
+// processPartitionsSequential handles sequential processing of partitions
+func processPartitionsSequential(partitions map[int]types.Dataset, keys []int, childSkylines []types.Dataset, pivot types.Point, prefs types.Preference, pivotSelector func(types.Dataset, types.Preference) types.Point, depth, maxDepth int, pool *workerPool, bnlSwitchThreshold int, dominates func(types.Point, types.Point, types.Preference) bool) []types.Dataset {
+	for idx, k := range keys {
+		subset := partitions[k]
+		if len(subset) == 0 {
+			continue
+		}
+		pruned := pruneWithPivotCached(subset, pivot, prefs, dominates)
+		childSky := skytreeRecWithDepthPool(pruned, prefs, pivotSelector, depth+1, maxDepth, pool, bnlSwitchThreshold)
+		childSkylines[idx] = childSky
+	}
+	return childSkylines
 }
 
 // parallelMergeSkylines merges a slice of skylines in parallel using the worker pool
@@ -245,7 +294,7 @@ func parallelMergeSkylines(skylines []types.Dataset, prefs types.Preference, poo
 }
 
 // selectMedianPivot chooses the point closest to the median in all dimensions
-func SelectMedianPivot(data types.Dataset, prefs types.Preference) types.Point {
+func SelectMedianPivot(data types.Dataset, _ types.Preference) types.Point {
 	n := len(data)
 	dim := len(data[0])
 	medians := make([]float64, dim)

@@ -1,0 +1,24 @@
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gofmt
+    - revive
+    - ineffassign
+    - typecheck
+    - misspell
+    - gocyclo
+
+run:
+  timeout: 5m
+  go: "1.24"
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+  gocyclo:
+    min-complexity: 15
+  revive:
+    rules:
+      - name: exported
+      - name: unused-parameter
