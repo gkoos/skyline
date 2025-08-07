@@ -12,6 +12,7 @@ type Order int
 const (
 	Min Order = iota
 	Max
+	Ignore  // Skip this dimension in dominance comparisons
 )
 
 type DNCConfig struct {

@@ -7,6 +7,10 @@ func Dominates(a, b types.Point, prefs types.Preference) bool {
 	anyBetter := false
 
 	for dim, order := range prefs {
+		if order == types.Ignore {
+			continue
+		}
+
 		av, bv := a[dim], b[dim]
 		if order == types.Min {
 			if av > bv {

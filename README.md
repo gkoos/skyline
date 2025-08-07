@@ -52,6 +52,7 @@ type Order int
 const (
     Min Order = iota
     Max
+    Ignore  // Skip this dimension in dominance comparisons
 )
 ```
 
@@ -115,7 +116,10 @@ func main() {
 }
 ```
 
----
+### Partial Skyline
+
+`Preference` includes an `Ignore` option to skip dimensions in dominance checks. This allows you to compute skylines based on a subset of dimensions, which can be useful in scenarios where some dimensions are not relevant.\
+A practical example is adding a unique key to each point which then can be ignored in dominance checks.
 
 ## Algorithms
 

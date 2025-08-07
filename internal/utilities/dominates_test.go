@@ -45,6 +45,9 @@ func TestDominates(t *testing.T) {
 
 		// Dominate in some, not all
 		{"DominateSomeNotAll", types.Point{1, 2, 4}, types.Point{2, 1, 3}, types.Preference{types.Min, types.Max, types.Min}, false},
+
+		// Ignore dimension
+		{"IgnoreDimension", types.Point{1, 2, 3}, types.Point{2, 1, 3}, types.Preference{types.Min, types.Ignore, types.Min}, true},
 	}
 
 	for _, tc := range cases {
