@@ -114,3 +114,23 @@ func TestDynamicDeleteSkyline(t *testing.T) {
 		t.Errorf("Skyline did not change after deleting skyline point")
 	}
 }
+
+func TestDynamicUpdateSkyline(t *testing.T) {
+    engine, err := DynamicSkyline(makeDataset5000CoupleDominating(), []string{"0", "1"}, Preference{Max, Max}, "bnl")
+    if err != nil {
+        t.Fatalf("engine creation failed: %v", err)
+    }
+
+    // Update a skyline point to a new dominating point
+    engine.Update(Point{1000, 1000}, Point{2000, 2000})
+    after := engine.Skyline()
+    if len(after) != 1 || !equalPoint(after[0], Point{2000, 2000}) {
+        t.Errorf("Skyline not replaced by updated dominating point")
+    }
+    // Update a non-skyline point (should not change the skyline)
+    engine.Update(Point{500, 500}, Point{600, 600})
+    after2 := engine.Skyline()
+    if len(after2) != 1 || !equalPoint(after2[0], Point{2000, 2000}) {
+        t.Errorf("Skyline changed after updating non-skyline point")
+    }
+}

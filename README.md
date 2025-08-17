@@ -191,7 +191,18 @@ The SkyTree implementation in this library includes several advanced optimizatio
 
 These optimizations make SkyTree suitable for very large and high-dimensional datasets, balancing speed, memory usage, and accuracy.
 
-### Example: Dominance with Epsilon
+### Approximate Skyline Queries
+
+All skyline algorithms in this package support an **epsilon** parameter, which allows for approximate dominance. Epsilon is a non-negative float that relaxes the strictness of dominance comparisons:
+
+- **Strict dominance** (`epsilon = 0`): A point `A` strictly dominates point `B` if all coordinates of `A` are less than or equal to those of `B`, and at least one is strictly less.
+- **Epsilon dominance** (`epsilon > 0`): A point `A` epsilon-dominates point `B` if all coordinates of `A` are less than or equal to those of `B` plus `epsilon`, and at least one coordinate is strictly less by more than `epsilon`.
+
+This is useful for handling floating-point imprecision or for applications where small differences are not significant.
+
+Epsilon dominance checks can be combined with sampling and partitioning of the data to calculate approximate skylines which can be more efficient for large datasets - essentially a tradeoff between accuracy and performance.
+
+#### Example: Dominance with Epsilon
 
 ```go
 import "skyline/internal/algorithms"
@@ -205,17 +216,6 @@ algorithms.DominatesEpsilon(a, b, 0) // false
 // Epsilon dominance (epsilon = 1e-6): true
 algorithms.DominatesEpsilon(a, b, 1e-6) // true
 ```
-
-### Approximate Skyline Queries
-
-All skyline algorithms in this package support an **epsilon** parameter, which allows for approximate dominance. Epsilon is a non-negative float that relaxes the strictness of dominance comparisons:
-
-- **Strict dominance** (`epsilon = 0`): A point `A` strictly dominates point `B` if all coordinates of `A` are less than or equal to those of `B`, and at least one is strictly less.
-- **Epsilon dominance** (`epsilon > 0`): A point `A` epsilon-dominates point `B` if all coordinates of `A` are less than or equal to those of `B` plus `epsilon`, and at least one coordinate is strictly less by more than `epsilon`.
-
-This is useful for handling floating-point imprecision or for applications where small differences are not significant.
-
-Epsilon dominance checks can be combined with sampling and partitioning of the data to calculate approximate skylines which can be more efficient for large datasets - essentially a tradeoff between accuracy and performance.
 
 ---
 
