@@ -4,6 +4,36 @@ import (
 	"testing"
 )
 
+func TestDynamicSkylineBatchInsert(t *testing.T) {
+	// Start with a dataset that is not a skyline
+	initial := Dataset{
+		Point{1, 1},
+		Point{2, 2},
+		Point{3, 3},
+	}
+	dims := []string{"0", "1"}
+	prefs := Preference{Max, Max}
+	eng, err := DynamicSkyline(initial, dims, prefs, "bnl")
+	if err != nil {
+		t.Fatalf("engine creation failed: %v", err)
+	}
+	engine := eng.(*engine)
+
+	// Batch insert: one dominated, one dominating, one incomparable
+	batch := Dataset{
+		Point{0, 0},   // dominated by all
+		Point{10, 10}, // dominates all
+		Point{2, 5},   // incomparable to some
+	}
+	engine.InsertBatch(batch)
+
+	skyline := engine.Skyline()
+	// Only the dominating point should remain
+	if len(skyline) != 1 || !equalPoint(skyline[0], Point{10, 10}) {
+		t.Errorf("BatchInsert failed: expected only {10,10} in skyline, got %v", skyline)
+	}
+}
+
 // 5000 points, a couple dominating
 func makeDataset5000CoupleDominating() Dataset {
 	data := make(Dataset, 5000)

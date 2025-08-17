@@ -1,3 +1,4 @@
+// ...existing code...
 package skyline
 
 import (
@@ -38,6 +39,21 @@ func DynamicSkyline(points []Point, dims []string, prefs Preference, algo string
 	}
 	e.skyline = result
 	return e, nil
+}
+
+// DynamicSkylineRaw creates a new dynamic skyline Engine using the provided points as the initial set, skipping skyline computation.
+// If algo is empty, it defaults to "bnl" for later batch operations. This is useful for batch insertion or when the dataset is already known to be the skyline.
+func DynamicSkylineRaw(points []Point, dims []string, prefs Preference, algo string) Engine {
+	if algo == "" {
+		algo = "bnl"
+	}
+	return &engine{
+		points:  points,
+		dims:    dims,
+		prefs:   prefs,
+		algo:    algo,
+		skyline: append([]Point(nil), points...),
+	}
 }
 
 // Insert adds a new point and updates the skyline incrementally.
@@ -157,6 +173,19 @@ func (e *engine) Delete(p Point) {
 // Skyline returns the current skyline set.
 func (e *engine) Skyline() []Point {
 	return e.skyline
+}
+
+// InsertBatch adds multiple new points and updates the skyline using the configured algorithm (default BNL).
+// All new points are considered together with the current skyline, and only the non-dominated points are kept.
+func (e *engine) InsertBatch(points []Point) {
+	e.points = append(e.points, points...)
+	candidates := append(append([]Point(nil), e.skyline...), points...)
+	skyline, err := Skyline(candidates, e.dims, e.prefs, e.algo)
+	if err != nil {
+		// fallback: use BNL if the configured algorithm fails
+		skyline, _ = Skyline(candidates, e.dims, e.prefs, "bnl")
+	}
+	e.skyline = skyline
 }
 
 // equalPoint compares two points for equality.

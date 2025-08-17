@@ -26,7 +26,7 @@ The result, called the **skyline set**, represents the **Pareto-optimal front** 
 ## What does this library do?
 
 - Compute skyline points from static datasets using multiple algorithms (Block Nested Loop, Divide & Conquer, SkyTree)
-- Support dynamic updates: insert, delete, and update points incrementally without recomputing from scratch
+- Support dynamic updates: insert, batch insertdelete, and update points incrementally without recomputing from scratch
 - Allow flexible dimension selection and preference (minimize/maximize per dimension)
 - Provide a simple, idiomatic Go API for both static and dynamic skyline queries
 
@@ -70,6 +70,35 @@ Computes the skyline from a static dataset.
 
 ### Dynamic Updates
 
+You can use the dynamic skyline engine for incremental and batch updates. Two constructors are available:
+
+#### 1. DynamicSkyline (with initial skyline computation)
+
+```go
+engine, err := skyline.DynamicSkyline(points, dims, prefs, algo)
+if err != nil {
+    panic(err)
+}
+```
+This computes the initial skyline from the dataset using the specified algorithm ("bnl", "dnc", or "skytree").
+
+#### 2. DynamicSkylineRaw (no initial skyline computation)
+
+```go
+engine := skyline.DynamicSkylineRaw(points, dims, prefs, algo)
+```
+This skips initial skyline computation and treats the provided points as the current skyline. Useful for streaming or batch scenarios.
+
+#### Supported Operations
+
+- `engine.Insert(point)` — Insert a single point (uses BNL logic)
+- `engine.InsertBatch(points)` — Insert multiple points at once (uses the configured algorithm for batch skyline computation)
+- `engine.Update(oldPoint, newPoint)` — Replace a point and update the skyline
+- `engine.Delete(point)` — Remove a point and update the skyline
+- `engine.Skyline()` — Get the current skyline set
+
+#### Example
+
 ```go
 package main
 
@@ -91,26 +120,31 @@ func main() {
         "battery": skyline.Max,
     }
 
-    // Static skyline
-    result, err := skyline.Skyline(points, []string{"price", "battery"}, prefs, "dnc")
-    if err != nil {
-        panic(err)
-    }
-    fmt.Println("Static skyline:", result)
-
-    // Dynamic skyline
+    // Dynamic skyline with initial computation
     engine, err := skyline.DynamicSkyline(points, []string{"price", "battery"}, prefs, "dnc")
     if err != nil {
         panic(err)
     }
+
+    // Insert a single point
     newPoint := skyline.Point{"price": 420, "battery": 15}
     engine.Insert(newPoint)
     fmt.Println("After insert:", engine.Skyline())
 
+    // Batch insert
+    batch := []skyline.Point{
+        {"price": 410, "battery": 13},
+        {"price": 390, "battery": 16},
+    }
+    engine.InsertBatch(batch)
+    fmt.Println("After batch insert:", engine.Skyline())
+
+    // Update a point
     updatedPoint := skyline.Point{"price": 460, "battery": 14}
     engine.Update(newPoint, updatedPoint)
     fmt.Println("After update:", engine.Skyline())
 
+    // Delete a point
     engine.Delete(updatedPoint)
     fmt.Println("After delete:", engine.Skyline())
 }
@@ -127,7 +161,7 @@ A practical example is adding a unique key to each point which then can be ignor
 - Simple, intuitive algorithm
 - Compares each point with all others to find dominating points
 - Works well for small datasets and supports incremental updates easily
-- *In dynamic mode, we always use this algorithm*
+- *In dynamic mode, we always use this algorithm* to insert a single point
 
 ### Divide & Conquer (D&C)
 - Recursively divides data into smaller subsets, computes skylines, and merges results
