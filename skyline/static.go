@@ -38,7 +38,7 @@ func Skyline(points []types.Point, _ []string, prefs types.Preference, algo stri
 	case "dnc":
 		result = algorithms.DivideAndConquer(points, prefs, &DNCConfig)
 	case "skytree":
-		result = algorithms.SkyTree(points, prefs, &SkyTreeConfig)
+		result = algorithms.SkyTree(points, prefs, SkyTreeConfig)
 	default:
 		return nil, fmt.Errorf("unknown algorithm: %s", algo)
 	}

@@ -6,7 +6,7 @@ import (
 	"github.com/gkoos/skyline/types"
 )
 
-func TestDominates(t *testing.T) {
+func TestDominatesEpsilon_Zero(t *testing.T) {
 	cases := []struct {
 		name     string
 		a, b     types.Point
@@ -52,9 +52,60 @@ func TestDominates(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := Dominates(tc.a, tc.b, tc.prefs)
+			result := DominatesEpsilon(tc.a, tc.b, tc.prefs, 0)
 			if result != tc.expected {
-				t.Errorf("Dominates(%v, %v, %v) = %v, want %v", tc.a, tc.b, tc.prefs, result, tc.expected)
+				t.Errorf("DominatesEpsilon(%v, %v, %v, 0) = %v, want %v", tc.a, tc.b, tc.prefs, result, tc.expected)
+			}
+		})
+	}
+}
+
+// Additional tests: same dataset, different epsilons
+// Placed at end of file per user request
+func TestDominatesEpsilon_VaryingEpsilon(t *testing.T) {
+	a := types.Point{1.0, 2.0}
+	b := types.Point{1.01, 2.0}
+	prefs := types.Preference{types.Min, types.Min}
+
+	cases := []struct {
+		name     string
+		epsilon  float64
+		expected bool
+	}{
+		{"EpsilonZero_Domination", 0, true},
+		{"EpsilonSmall_Domination", 0.005, true},
+		{"EpsilonCoversDiff_Domination", 0.02, false},
+		{"EpsilonExactDiff_Domination", 0.01, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := DominatesEpsilon(a, b, prefs, tc.epsilon)
+			if result != tc.expected {
+				t.Errorf("DominatesEpsilon(%v, %v, %v, %v) = %v, want %v", a, b, prefs, tc.epsilon, result, tc.expected)
+			}
+		})
+	}
+
+	// Also test with Max preference
+	a = types.Point{2.0, 5.0}
+	b = types.Point{1.99, 5.0}
+	prefs = types.Preference{types.Max, types.Max}
+	cases = []struct {
+		name     string
+		epsilon  float64
+		expected bool
+	}{
+		{"EpsilonZero_Domination_Max", 0, true},
+		{"EpsilonSmall_Domination_Max", 0.005, true},
+		{"EpsilonCoversDiff_Domination_Max", 0.02, false},
+		{"EpsilonExactDiff_Domination_Max", 0.01, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := DominatesEpsilon(a, b, prefs, tc.epsilon)
+			if result != tc.expected {
+				t.Errorf("DominatesEpsilon(%v, %v, %v, %v) = %v, want %v", a, b, prefs, tc.epsilon, result, tc.expected)
 			}
 		})
 	}

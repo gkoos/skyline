@@ -31,6 +31,9 @@ The result, called the **skyline set**, represents the **Pareto-optimal front** 
 - Provide a simple, idiomatic Go API for both static and dynamic skyline queries
 
 ---
+- **Block Nested Loop (BNL):** Brute-force, compares each point to all others. Use `BlockNestedLoop(points, epsilon)`. Epsilon controls the dominance threshold.
+- **Divide and Conquer (DNC):** Recursive, efficient for large datasets. Use `DivideAndConquer(points, DNCConfig{Epsilon: ...})`. Epsilon is passed via the config.
+- **SkyTree:** Tree-based, efficient for high dimensions. Use `SkyTree(points, epsilon)`. Epsilon is passed as a parameter.
 
 ## Installation
 
@@ -188,6 +191,32 @@ The SkyTree implementation in this library includes several advanced optimizatio
 
 These optimizations make SkyTree suitable for very large and high-dimensional datasets, balancing speed, memory usage, and accuracy.
 
+### Example: Dominance with Epsilon
+
+```go
+import "skyline/internal/algorithms"
+
+a := []float64{1.0, 2.0}
+b := []float64{1.0, 2.0000001}
+
+// Strict dominance (epsilon = 0): false
+algorithms.DominatesEpsilon(a, b, 0) // false
+
+// Epsilon dominance (epsilon = 1e-6): true
+algorithms.DominatesEpsilon(a, b, 1e-6) // true
+```
+
+### Approximate Skyline Queries
+
+All skyline algorithms in this package support an **epsilon** parameter, which allows for approximate dominance. Epsilon is a non-negative float that relaxes the strictness of dominance comparisons:
+
+- **Strict dominance** (`epsilon = 0`): A point `A` strictly dominates point `B` if all coordinates of `A` are less than or equal to those of `B`, and at least one is strictly less.
+- **Epsilon dominance** (`epsilon > 0`): A point `A` epsilon-dominates point `B` if all coordinates of `A` are less than or equal to those of `B` plus `epsilon`, and at least one coordinate is strictly less by more than `epsilon`.
+
+This is useful for handling floating-point imprecision or for applications where small differences are not significant.
+
+Epsilon dominance checks can be combined with sampling and partitioning of the data to calculate approximate skylines which can be more efficient for large datasets - essentially a tradeoff between accuracy and performance.
+
 ---
 
 ## Configuration
@@ -195,11 +224,12 @@ These optimizations make SkyTree suitable for very large and high-dimensional da
 Skyline algorithms can be fine-tuned using configuration options to optimize performance and scalability for different dataset sizes and characteristics. Tuning these options allows you to balance speed, memory usage, and accuracy, especially for large or high-dimensional data. Proper configuration is essential to avoid bottlenecks, excessive memory consumption, or incomplete results, and lets you adapt the algorithms to your specific workload and hardware.
 
 ### Block Nested Loop (BNL)
-- No configuration options. BNL is simple and always compares all points; best for small datasets or incremental updates.
+- `Epsilon`: Dominance threshold for comparisons. Lower values increase accuracy but may slow down performance. Higher values speed up comparisons but may miss some dominated points. Default is `0.0`, meaning exact dominance checks.
 
 ### Divide & Conquer (DNC)
 - `Threshold`: Minimum number of points in a partition before switching to BNL. Lower values increase recursion, higher values use BNL more often. Tune for your dataset size.
 - `BatchSize`: Number of points processed together in each batch. Larger batches can improve cache locality and throughput, but may use more memory.
+- `Epsilon`: Dominance threshold for comparisons. See Block Nested Loop (BNL) section.
 
 ### SkyTree
 - `PivotSelector`: Function to choose the pivot point for partitioning. The default is median selection, but you can provide a custom function for domain-specific optimization.
@@ -207,6 +237,7 @@ Skyline algorithms can be fine-tuned using configuration options to optimize per
 - `MaxRecursionDepth`: Maximum allowed recursion depth. If exceeded, SkyTree falls back to BNL for the remaining data. Prevents stack overflow and excessive computation for very large or complex datasets.
 - `BNLSwitchThreshold`: If the number of points in a partition is less than or equal to this threshold, SkyTree will use the Block Nested Loop (BNL) algorithm for that partition instead of recursing further. This improves performance by avoiding SkyTree's overhead on small datasets, where BNL is typically faster. The default is 32, but you can tune this value for your workload and hardware. Lower values reduce BNL usage; higher values make SkyTree switch to BNL more often for small partitions.
 - `WorkerPoolSize`: Controls the maximum number of goroutines (workers) used for parallel recursion and merging in SkyTree. Setting this to `0` (the default) will use the number of available CPU cores on your system, which is usually optimal for most workloads. You can set a specific positive value to limit CPU usage or experiment with different levels of parallelism. Increasing this value may improve performance on large, partitionable datasets, but setting it too high can cause oversubscription and reduce efficiency. For most users, leaving it at `0` is recommended.
+- `Epsilon`: Dominance threshold for comparisons. See Block Nested Loop (BNL) section.
 
 Refer to the code and examples for how to set these options in your application.
 

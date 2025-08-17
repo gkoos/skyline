@@ -2,8 +2,8 @@ package utilities
 
 import "github.com/gkoos/skyline/types"
 
-// Returns true if a dominates b according to the given preferences.
-func Dominates(a, b types.Point, prefs types.Preference) bool {
+// DominatesEpsilon returns true if a dominates b according to the given preferences, allowing a tolerance epsilon.
+func DominatesEpsilon(a, b types.Point, prefs types.Preference, epsilon float64) bool {
 	anyBetter := false
 
 	for dim, order := range prefs {
@@ -13,17 +13,17 @@ func Dominates(a, b types.Point, prefs types.Preference) bool {
 
 		av, bv := a[dim], b[dim]
 		if order == types.Min {
-			if av > bv {
+			if av > bv+epsilon {
 				return false
 			}
-			if av < bv {
+			if av < bv-epsilon {
 				anyBetter = true
 			}
 		} else { // types.Max
-			if av < bv {
+			if av < bv-epsilon {
 				return false
 			}
-			if av > bv {
+			if av > bv+epsilon {
 				anyBetter = true
 			}
 		}

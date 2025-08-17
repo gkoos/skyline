@@ -1,3 +1,4 @@
+// ...removed stray type alias...
 package algorithms
 
 import (
@@ -82,13 +83,13 @@ func DivideAndConquer(data types.Dataset, prefs types.Preference, cfg *types.DNC
 
 	// Batch merge using cfg.BatchSize (symmetric merge)
 	merged := make(types.Dataset, 0, len(leftSkyline)+len(rightSkyline))
-	merged = appendNonDominated(merged, leftSkyline, rightSkyline, prefs, cfg.BatchSize)
-	merged = appendNonDominated(merged, rightSkyline, leftSkyline, prefs, cfg.BatchSize)
+	merged = appendNonDominated(merged, leftSkyline, rightSkyline, prefs, cfg.BatchSize, cfg.Epsilon)
+	merged = appendNonDominated(merged, rightSkyline, leftSkyline, prefs, cfg.BatchSize, cfg.Epsilon)
 
 	return merged
 }
 
-func appendNonDominated(merged types.Dataset, src, other types.Dataset, prefs types.Preference, batchSize int) types.Dataset {
+func appendNonDominated(merged types.Dataset, src, other types.Dataset, prefs types.Preference, batchSize int, epsilon float64) types.Dataset {
 	for i := 0; i < len(src); i += batchSize {
 		end := i + batchSize
 		if end > len(src) {
@@ -98,7 +99,7 @@ func appendNonDominated(merged types.Dataset, src, other types.Dataset, prefs ty
 		for _, p := range batch {
 			dominated := false
 			for _, q := range other {
-				if utilities.Dominates(q, p, prefs) {
+				if utilities.DominatesEpsilon(q, p, prefs, epsilon) {
 					dominated = true
 					break
 				}

@@ -66,7 +66,7 @@ func (e *engine) Insert(p Point) {
 
 	// Check if new point is dominated by any current skyline point
 	for _, s := range e.skyline {
-		if utilities.Dominates(s, p, e.prefs) {
+		if utilities.DominatesEpsilon(s, p, e.prefs, 0) {
 			dominated = true
 			break
 		}
@@ -79,7 +79,7 @@ func (e *engine) Insert(p Point) {
 
 	// New point is not dominated, add it to skyline and remove any skyline points it dominates
 	for _, s := range e.skyline {
-		if utilities.Dominates(p, s, e.prefs) {
+		if utilities.DominatesEpsilon(p, s, e.prefs, 0) {
 			// p dominates s, so s is not in new skyline
 			continue
 		}
@@ -148,7 +148,7 @@ func (e *engine) Delete(p Point) {
 		// Check if candidate is dominated by any skyline point
 		dominated := false
 		for _, s := range updatedSkyline {
-			if utilities.Dominates(s, candidate, e.prefs) {
+			if utilities.DominatesEpsilon(s, candidate, e.prefs, 0) {
 				dominated = true
 				break
 			}
@@ -159,7 +159,7 @@ func (e *engine) Delete(p Point) {
 		// Candidate is not dominated, add to skyline and remove any skyline points it dominates
 		var newSkyline []Point
 		for _, s := range updatedSkyline {
-			if utilities.Dominates(candidate, s, e.prefs) {
+			if utilities.DominatesEpsilon(candidate, s, e.prefs, 0) {
 				continue
 			}
 			newSkyline = append(newSkyline, s)

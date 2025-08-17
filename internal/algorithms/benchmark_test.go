@@ -23,7 +23,7 @@ func BenchmarkDNC_10000SmallSkyline4D(b *testing.B) {
 func BenchmarkSkyTree_10000SmallSkyline4D(b *testing.B) {
 	prefs := types.Preference{types.Min, types.Max, types.Min, types.Max}
 	for i := 0; i < b.N; i++ {
-		SkyTree(Dataset10000SmallSkyline4D, prefs, nil)
+		SkyTree(Dataset10000SmallSkyline4D, prefs, DefaultSkyTreeConfig)
 	}
 }
 
@@ -44,7 +44,7 @@ func BenchmarkDNC_5000OneDominating(b *testing.B) {
 func BenchmarkSkyTree_5000OneDominating(b *testing.B) {
 	prefs := types.Preference{types.Min, types.Max}
 	for i := 0; i < b.N; i++ {
-		SkyTree(Dataset5000OneDominating, prefs, nil)
+		SkyTree(Dataset5000OneDominating, prefs, DefaultSkyTreeConfig)
 	}
 }
 
@@ -65,7 +65,7 @@ func BenchmarkDNC_5000CoupleDominating(b *testing.B) {
 func BenchmarkSkyTree_5000CoupleDominating(b *testing.B) {
 	prefs := types.Preference{types.Min, types.Max}
 	for i := 0; i < b.N; i++ {
-		SkyTree(Dataset5000CoupleDominating, prefs, nil)
+		SkyTree(Dataset5000CoupleDominating, prefs, DefaultSkyTreeConfig)
 	}
 }
 
@@ -86,7 +86,7 @@ func BenchmarkDNC_5000AllSame(b *testing.B) {
 func BenchmarkSkyTree_5000AllSame(b *testing.B) {
 	prefs := types.Preference{types.Min, types.Max}
 	for i := 0; i < b.N; i++ {
-		SkyTree(Dataset5000AllSame, prefs, nil)
+		SkyTree(Dataset5000AllSame, prefs, DefaultSkyTreeConfig)
 	}
 }
 
@@ -107,7 +107,7 @@ func BenchmarkDNC_1000OneDominating4D(b *testing.B) {
 func BenchmarkSkyTree_1000OneDominating4D(b *testing.B) {
 	prefs := types.Preference{types.Min, types.Max, types.Min, types.Max}
 	for i := 0; i < b.N; i++ {
-		SkyTree(Dataset1000OneDominating4D, prefs, nil)
+		SkyTree(Dataset1000OneDominating4D, prefs, DefaultSkyTreeConfig)
 	}
 }
 
@@ -128,7 +128,7 @@ func BenchmarkDNC_1000CoupleDominating4D(b *testing.B) {
 func BenchmarkSkyTree_1000CoupleDominating4D(b *testing.B) {
 	prefs := types.Preference{types.Min, types.Max, types.Min, types.Max}
 	for i := 0; i < b.N; i++ {
-		SkyTree(Dataset1000CoupleDominating4D, prefs, nil)
+		SkyTree(Dataset1000CoupleDominating4D, prefs, DefaultSkyTreeConfig)
 	}
 }
 
@@ -149,7 +149,7 @@ func BenchmarkDNC_1000AllSame4D(b *testing.B) {
 func BenchmarkSkyTree_1000AllSame4D(b *testing.B) {
 	prefs := types.Preference{types.Min, types.Max, types.Min, types.Max}
 	for i := 0; i < b.N; i++ {
-		SkyTree(Dataset1000AllSame4D, prefs, nil)
+		SkyTree(Dataset1000AllSame4D, prefs, DefaultSkyTreeConfig)
 	}
 }
 
@@ -170,7 +170,7 @@ func BenchmarkDNC_100000SmallSkyline4D(b *testing.B) {
 func BenchmarkSkyTree_100000SmallSkyline4D(b *testing.B) {
 	prefs := types.Preference{types.Min, types.Max, types.Min, types.Max}
 	for i := 0; i < b.N; i++ {
-		SkyTree(Dataset100000SmallSkyline4D, prefs, nil)
+		SkyTree(Dataset100000SmallSkyline4D, prefs, DefaultSkyTreeConfig)
 	}
 }
 
@@ -184,6 +184,6 @@ func BenchmarkDNC_200000ClusteredSmallSkyline8D(b *testing.B) {
 func BenchmarkSkyTree_200000ClusteredSmallSkyline8D(b *testing.B) {
 	prefs := types.Preference{types.Min, types.Min, types.Min, types.Min, types.Min, types.Min, types.Min, types.Min}
 	for i := 0; i < b.N; i++ {
-		SkyTree(Dataset200000ClusteredSmallSkyline8D, prefs, nil)
+		SkyTree(Dataset200000ClusteredSmallSkyline8D, prefs, DefaultSkyTreeConfig)
 	}
 }

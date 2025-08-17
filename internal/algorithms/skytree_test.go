@@ -34,8 +34,7 @@ func TestSkyTree_Skyline_Large(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := &defaultSkyTreeConfig
-			result := SkyTree(tc.input, tc.prefs, cfg)
+			result := SkyTree(tc.input, tc.prefs, DefaultSkyTreeConfig)
 			if !equalSkylineSet(result, tc.expected) {
 				t.Errorf("SkyTree skyline incorrect for %s: got %v, want %v", tc.name, result, tc.expected)
 			}
