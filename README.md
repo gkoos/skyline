@@ -31,9 +31,6 @@ The result, called the **skyline set**, represents the **Pareto-optimal front** 
 - Provide a simple, idiomatic Go API for both static and dynamic skyline queries
 
 ---
-- **Block Nested Loop (BNL):** Brute-force, compares each point to all others. Use `BlockNestedLoop(points, epsilon)`. Epsilon controls the dominance threshold.
-- **Divide and Conquer (DNC):** Recursive, efficient for large datasets. Use `DivideAndConquer(points, DNCConfig{Epsilon: ...})`. Epsilon is passed via the config.
-- **SkyTree:** Tree-based, efficient for high dimensions. Use `SkyTree(points, epsilon)`. Epsilon is passed as a parameter.
 
 ## Installation
 
